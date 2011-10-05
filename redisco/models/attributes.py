@@ -5,7 +5,7 @@ Defines the fields that can be added to redisco models.
 import time
 from datetime import datetime, date
 from redisco.containers import List
-from exceptions import FieldValidationError
+from exceptions import FieldValidationError, MissingID
 
 __all__ = ['Attribute', 'CharField', 'ListField', 'DateTimeField',
         'DateField', 'ReferenceField', 'IntegerField',
@@ -105,9 +105,16 @@ class Attribute(object):
 
     def validate_uniqueness(self, instance, val):
         encoded = self.typecast_for_storage(val)
-        same = len(instance.__class__.objects.filter(**{self.name: encoded}))
-        if same > 0:
-            return (self.name, 'not unique',)
+        matches = instance.__class__.objects.filter(**{self.name: encoded})
+        if len(matches) > 0:
+            try:
+                instance_id = instance.id
+                no_id = False
+            except MissingID:
+                no_id = True
+            if (len(matches) != 1) or no_id or (matches.first().id != instance.id):
+                return (self.name, 'not unique',)
+                
 
 
 class CharField(Attribute):
